@@ -55,6 +55,9 @@ cp .env.example .env
 
 Required variables:
 
+- `POSTGRES_DB`: local PostgreSQL database name used by Docker Compose
+- `POSTGRES_USER`: local PostgreSQL username used by Docker Compose
+- `POSTGRES_PASSWORD`: local PostgreSQL password used by Docker Compose
 - `DATABASE_URL`: PostgreSQL connection string used by Prisma
 - `REDIS_HOST`: Redis hostname for BullMQ
 - `REDIS_PORT`: Redis port for BullMQ
