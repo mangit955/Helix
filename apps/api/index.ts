@@ -1,6 +1,16 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
+import type { Prisma } from "@prisma/client";
 import { fixQueue } from "@repo/shared/queue";
 import { prisma } from "@repo/shared/prisma";
+import type {
+  CreateFixJobInput,
+  CreateFixJobResponse,
+  GetFixJobResponse,
+} from "@repo/shared/types";
 
 class HttpError extends Error {
   constructor(
@@ -24,7 +34,24 @@ function parsePort(rawPort: string | undefined, fallbackPort: number): number {
   return parsedPort;
 }
 
-async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+function parseMaxAttempts(value: unknown): number {
+  if (value === undefined || value === null) {
+    return 3;
+  }
+
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+    throw new HttpError(
+      "`maxAttempts` must be a positive integer when provided.",
+      400,
+    );
+  }
+
+  return value;
+}
+
+async function readJsonBody(
+  request: IncomingMessage,
+): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
 
   for await (const chunk of request) {
@@ -44,7 +71,11 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
   }
 }
 
-function sendJson(response: ServerResponse, statusCode: number, payload: unknown): void {
+function sendJson(
+  response: ServerResponse,
+  statusCode: number,
+  payload: unknown,
+): void {
   response.writeHead(statusCode, { "Content-Type": "application/json" });
   response.end(JSON.stringify(payload));
 }
@@ -54,26 +85,93 @@ function getRequestUrl(request: IncomingMessage): URL {
   return new URL(request.url ?? "/", `http://${host}`);
 }
 
+type FixJobWithAttempts = Prisma.FixJobGetPayload<{
+  include: {
+    attempts: true;
+  };
+}>;
+
+function toIsoString(value: Date | null): string | null {
+  return value ? value.toISOString() : null;
+}
+
+function serializeFixJob(fixJob: FixJobWithAttempts): GetFixJobResponse["job"] {
+  return {
+    id: fixJob.id,
+    repoPath: fixJob.repoPath,
+    bugDescription: fixJob.bugDescription,
+    stackTrace: fixJob.stackTrace,
+    status: fixJob.status,
+    maxAttempts: fixJob.maxAttempts,
+    currentAttempt: fixJob.currentAttempt,
+    failureReason: fixJob.failureReason,
+    startedAt: toIsoString(fixJob.startedAt),
+    completedAt: toIsoString(fixJob.completedAt),
+    createdAt: fixJob.createdAt.toISOString(),
+    updatedAt: fixJob.updatedAt.toISOString(),
+    attempts: fixJob.attempts.map((attempt) => ({
+      id: attempt.id,
+      attemptNumber: attempt.attemptNumber,
+      status: attempt.status,
+      workspacePath: attempt.workspacePath,
+      buildPassed: attempt.buildPassed,
+      testsPassed: attempt.testsPassed,
+      bugResolved: attempt.bugResolved,
+      errorMessage: attempt.errorMessage,
+      createdAt: attempt.createdAt.toISOString(),
+      updatedAt: attempt.updatedAt.toISOString(),
+      completedAt: toIsoString(attempt.completedAt),
+    })),
+  };
+}
+
 async function handleCreateFixJob(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
   const body = await readJsonBody(request);
+
   const repoPath = body.repoPath;
-  const error = body.error;
+  const bugDescription = body.bugDescription;
+  const stackTrace = body.stackTrace;
+  const maxAttempts = parseMaxAttempts(body.maxAttempts);
 
   if (typeof repoPath !== "string" || repoPath.trim().length === 0) {
     throw new HttpError("`repoPath` must be a non-empty string.", 400);
   }
 
-  if (error !== undefined && error !== null && typeof error !== "string") {
-    throw new HttpError("`error` must be a string when provided.", 400);
+  if (
+    typeof bugDescription !== "string" ||
+    bugDescription.trim().length === 0
+  ) {
+    throw new HttpError("`bugDescription` must be a non-empty string.", 400);
   }
+
+  if (
+    stackTrace !== undefined &&
+    stackTrace !== null &&
+    typeof stackTrace !== "string"
+  ) {
+    throw new HttpError("`stackTrace` must be a string when provided.", 400);
+  }
+
+  const input: CreateFixJobInput = {
+    repoPath: repoPath.trim(),
+    bugDescription: bugDescription.trim(),
+    stackTrace:
+      typeof stackTrace === "string" && stackTrace.trim().length > 0
+        ? stackTrace.trim()
+        : null,
+    maxAttempts,
+  };
 
   const fixJob = await prisma.fixJob.create({
     data: {
-      repoPath: repoPath.trim(),
-      error: typeof error === "string" ? error : null,
+      repoPath: input.repoPath,
+      bugDescription: input.bugDescription,
+      stackTrace: input.stackTrace ?? null,
+      maxAttempts,
+      currentAttempt: 0,
       status: "queued",
     },
   });
@@ -81,29 +179,47 @@ async function handleCreateFixJob(
   await fixQueue.add("fix", {
     jobId: fixJob.id,
     repoPath: fixJob.repoPath,
-    error: fixJob.error,
+    bugDescription: fixJob.bugDescription,
+    stackTrace: fixJob.stackTrace,
+    maxAttempts: fixJob.maxAttempts,
   });
 
-  sendJson(response, 202, {
+  const payload: CreateFixJobResponse = {
     jobId: fixJob.id,
     status: fixJob.status,
-  });
+  };
+
+  sendJson(response, 202, payload);
 }
 
-async function handleGetFixJob(jobId: string, response: ServerResponse): Promise<void> {
+async function handleGetFixJob(
+  jobId: string,
+  response: ServerResponse,
+): Promise<void> {
   if (!jobId) {
     throw new HttpError("A job id is required.", 400);
   }
 
   const fixJob = await prisma.fixJob.findUnique({
     where: { id: jobId },
+    include: {
+      attempts: {
+        orderBy: {
+          attemptNumber: "asc",
+        },
+      },
+    },
   });
 
   if (!fixJob) {
     throw new HttpError("Fix job not found.", 404);
   }
 
-  sendJson(response, 200, { job: fixJob });
+  const payload: GetFixJobResponse = {
+    job: serializeFixJob(fixJob),
+  };
+
+  sendJson(response, 200, payload);
 }
 
 const server = createServer(async (request, response) => {
@@ -129,7 +245,8 @@ const server = createServer(async (request, response) => {
     sendJson(response, 404, { error: "Route not found." });
   } catch (error) {
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
-    const message = error instanceof HttpError ? error.message : "Internal server error.";
+    const message =
+      error instanceof HttpError ? error.message : "Internal server error.";
 
     if (!(error instanceof HttpError)) {
       console.error("API request failed:", error);

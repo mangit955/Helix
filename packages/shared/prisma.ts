@@ -1,5 +1,8 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { ensureWorkspaceEnvLoaded } from "./env.js";
+
+ensureWorkspaceEnvLoaded();
 
 function getDatabaseUrl(): string {
   const databaseUrl = process.env.DATABASE_URL;

@@ -1,28 +1,28 @@
 {
-  "name": "@repo/shared",
+  "name": "@repo/executor",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": {
-      "types": "./index.ts",
+      "types": "./src/index.ts",
       "import": "./dist/index.js"
     },
-    "./queue": {
-      "types": "./queue.ts",
-      "import": "./dist/queue.js"
+    "./workspace": {
+      "types": "./src/workspace.ts",
+      "import": "./dist/workspace.js"
     },
-    "./prisma": {
-      "types": "./prisma.ts",
-      "import": "./dist/prisma.js"
+    "./editor": {
+      "types": "./src/editor.ts",
+      "import": "./dist/editor.js"
     },
-    "./env": {
-      "types": "./env.ts",
-      "import": "./dist/env.js"
+    "./command-runner": {
+      "types": "./src/command-runner.ts",
+      "import": "./dist/command-runner.js"
     },
-    "./types": {
-      "types": "./types.ts",
-      "import": "./dist/types.js"
+    "./repo-scan": {
+      "types": "./src/repo-scan.ts",
+      "import": "./dist/repo-scan.js"
     }
   },
   "scripts": {
@@ -32,15 +32,12 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.6.0",
-    "@prisma/client": "^7.6.0",
-    "bullmq": "^5.73.0",
-    "pg": "^8.16.3"
+    "@repo/shared": "workspace:*"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^22.15.3",
+    "@types/node": "^22.19.17",
     "eslint": "^9.39.1",
     "typescript": "5.9.2"
   }

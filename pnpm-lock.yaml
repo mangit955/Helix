@@ -59,6 +59,31 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
+  apps/cli:
+    dependencies:
+      '@repo/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@types/node':
+        specifier: ^22.19.17
+        version: 22.19.17
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.4(jiti@2.6.1)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   apps/dashboard:
     dependencies:
       '@repo/ui':
@@ -133,6 +158,34 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
+  packages/agent:
+    dependencies:
+      '@prisma/client':
+        specifier: ^7.6.0
+        version: 7.6.0(prisma@7.6.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.2))(typescript@5.9.2)
+      '@repo/executor':
+        specifier: workspace:*
+        version: link:../executor
+      '@repo/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.19.17
+        version: 22.19.17
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.4(jiti@2.6.1)
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   packages/eslint-config:
     devDependencies:
       '@eslint/js':
@@ -168,6 +221,28 @@ importers:
       typescript-eslint:
         specifier: ^8.50.0
         version: 8.58.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.2)
+
+  packages/executor:
+    dependencies:
+      '@repo/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.19.17
+        version: 22.19.17
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.4(jiti@2.6.1)
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
 
   packages/shared:
     dependencies:
@@ -235,6 +310,9 @@ importers:
 
   workers/agent-worker:
     dependencies:
+      '@repo/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@repo/shared':
         specifier: workspace:*
         version: link:../../packages/shared

@@ -1,12 +1,10 @@
 import { Queue, type ConnectionOptions } from "bullmq";
+import type { FixQueueJobData } from "./types.js";
+import { ensureWorkspaceEnvLoaded } from "./env.js";
+
+ensureWorkspaceEnvLoaded();
 
 export const FIX_QUEUE_NAME = "fix-queue";
-
-export interface FixQueueJobData {
-  jobId: string;
-  repoPath: string;
-  error: string | null;
-}
 
 function getRedisPort(): number {
   const rawPort = process.env.REDIS_PORT ?? "6379";

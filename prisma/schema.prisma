@@ -11,10 +11,56 @@ datasource db {
   provider = "postgresql"
 }
 
+enum FixJobStatus {
+  queued
+  processing
+  completed
+  failed
+}
+
+enum AttemptStatus {
+  running
+  succeeded
+  failed
+}
+
 model FixJob {
-  id  String @id @default(uuid())
+  id String @id @default(uuid())
   repoPath String
-  error String?
-  status String
+  bugDescription String
+  stackTrace String?
+  status FixJobStatus @default(queued)
+  maxAttempts Int @default(3)
+  currentAttempt Int @default(0)
+  startedAt DateTime?
+  completedAt DateTime?
+  failureReason String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  attempts Attempt[]
+}
+
+model Attempt {
+  id String @id @default(uuid())
+  fixJobId String
+  attemptNumber Int
+  status AttemptStatus @default(running)
+  workspacePath String
+  rootCause String?
+  planSummary String?
+  patchSummary String?
+  modelPrompt String?
+  modelResponse String?
+  filesChanged Json?
+  buildPassed Boolean?
+  testsPassed Boolean?
+  bugResolved Boolean?
+  commandLogs Json?
+  errorMessage String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime?
+  fixJob FixJob @relation(fields: [fixJobId], references: [id], onDelete: Cascade)
+
+  @@unique([fixJobId, attemptNumber])
 }
